@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="tr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Skin Düzenleyici</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        canvas#textureCanvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            -moz-image-rendering: crisp-edges;
+            -webkit-image-rendering: pixelated;
+        }
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 9999px;
+            cursor: pointer;
+            background: transparent;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 2px solid #475569; border-radius: 9999px; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.5); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.8); }
+
+        /* Realistic Multi-layered Winter Blizzard & Drift Animation */
+        @keyframes realisticSnowfall {
+            0% {
+                transform: translateY(-20px) translateX(0) rotate(0deg);
+                opacity: 0;
+            }
+            12% {
+                opacity: var(--max-opacity, 0.85);
+            }
+            30% {
+                transform: translateY(30vh) translateX(calc(var(--sway-x, 30px) * 1.2)) rotate(90deg);
+            }
+            55% {
+                transform: translateY(55vh) translateX(calc(var(--sway-x, 30px) * -0.7)) rotate(180deg);
+            }
+            80% {
+                transform: translateY(80vh) translateX(calc(var(--sway-x, 30px) * 1.4)) rotate(270deg);
+                opacity: var(--max-opacity, 0.85);
+            }
+            100% {
+                transform: translateY(105vh) translateX(calc(var(--sway-x, 30px) * 0.3)) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .snowflake {
+            position: fixed;
+            top: -20px;
+            pointer-events: none;
+            z-index: 9999;
+            border-radius: 50%;
+            animation: realisticSnowfall linear infinite;
+            will-change: transform, opacity;
+            user-select: none;
+        }
+
+        /* Atmospheric Frost Vignette Effect */
+        .winter-vignette {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9990;
+            background: radial-gradient(circle at center, transparent 55%, rgba(14, 116, 144, 0.12) 80%, rgba(2, 132, 199, 0.28) 100%);
+            box-shadow: inset 0 0 60px rgba(56, 189, 248, 0.25);
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+        }
+        .winter-vignette.active {
+            opacity: 1;
+        }
+
+        /* Frosted Winter Glassmorphism */
+        .winter-glass {
+            background: rgba(12, 74, 110, 0.65) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.25) !important;
+            box-shadow: 0 8px 32px 0 rgba(3, 105, 161, 0.3) !important;
+        }
+    </style>
+</head>
+<body id="appBody" class="bg-slate-950 text-slate-100 h-full flex flex-col overflow-hidden transition-colors duration-500">
+    <!-- Atmospheric Winter Frost Vignette Overlay -->
+    <div id="winterVignette" class="winter-vignette"></div>
+
+    <!-- Header -->
+    <header id="appHeader" class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex items-center justify-between shrink-0 shadow-lg z-10 transition-colors duration-500">
+        <div class="flex items-center space-x-3">
+            <button id="modelTypeToggle" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center space-x-2 border border-slate-700 shadow-sm">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                <span id="modelTypeText">Model: Steve (Kalın)</span>
+            </button>
+            <a href="https://zartheusbaba.github.io/Heus-Texture-Studio/" target="_blank" rel="noopener noreferrer" class="bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center space-x-2 border border-slate-700 shadow-sm" title="Heus Texture Studio">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                <span>Heus Texture Studio</span>
+            </a>
+            <a href="https://namemc.com/profile/zartheusMC.1" target="_blank" rel="noopener noreferrer" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center space-x-2 border border-slate-700 shadow-sm" title="Zartheus NameMC Profili">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                <span>Made By Zartheus</span>
+            </a>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- Theme Switcher -->
+            <div class="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700 shadow-sm" id="themeSwitcherContainer">
+                <button data-theme="dark" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold transition flex items-center space-x-1.5" title="Koyu Mod">
+                    <span>🌙 Koyu</span>
+                </button>
+                <button data-theme="light" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold transition flex items-center space-x-1.5" title="Aydınlık Mod">
+                    <span>☀️ Aydınlık</span>
+                </button>
+                <button data-theme="winter" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold transition flex items-center space-x-1.5" title="Ultra Detaylı Kış Modu">
+                    <span>❄️ Kış Masalı</span>
+                </button>
+            </div>
+
+            <label id="uploadLabel" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3.5 py-2 rounded-lg cursor-pointer transition flex items-center space-x-2 border border-slate-700 shadow-sm">
+                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                <span>Aktif Katmana Skin Ekle (PNG)</span>
+                <input type="file" id="skinInput" accept="image/png" class="hidden">
+            </label>
+
+            <button id="nickSkinBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3.5 py-2 rounded-lg transition flex items-center space-x-2 border border-slate-700 shadow-sm">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                <span>Katmana Nick ile Skin Ekle</span>
+            </button>
+
+            <button id="downloadBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition flex items-center space-x-2 shadow-lg shadow-emerald-900/30">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Skini Birleştir & İndir</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden p-4 gap-4">
+        
+        <!-- Left Section: 2D Enhanced Paint Editor & Layer Panel -->
+        <section id="leftPanel" class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-colors duration-300">
+            <div id="leftHeader" class="bg-slate-900/90 px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 transition-colors duration-300">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>2D Piksel Boyama Stüdyosu</span>
+                </h2>
+                
+                <!-- Professional Tools Bar -->
+                <div class="flex items-center flex-wrap gap-2">
+                    <div class="flex items-center space-x-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 shadow-inner" id="toolBoxGroup">
+                        <button id="toolBrush" class="p-2 rounded-lg bg-emerald-600 text-white text-xs font-medium transition flex items-center justify-center" title="Kalem (Brush)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        </button>
+                        <button id="toolEraser" class="p-2 rounded-lg text-slate-400 hover:text-white text-xs font-medium transition flex items-center justify-center" title="Silgi (Şeffaf)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                        <button id="toolBucket" class="p-2 rounded-lg text-slate-400 hover:text-white text-xs font-medium transition flex items-center justify-center" title="Boya Kovası (Bucket Fill)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                        </button>
+                        <button id="toolPicker" class="p-2 rounded-lg text-slate-400 hover:text-white text-xs font-medium transition flex items-center justify-center" title="Renk Seçici (Eyedropper)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+                        </button>
+                        <button id="toolLighten" class="p-2 rounded-lg text-slate-400 hover:text-white text-xs font-medium transition flex items-center justify-center" title="Açık Ton (Shading +)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m3.343-5.657l-.707-.707m12.728 12.728l-.707-.707m0-11.314l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        </button>
+                        <button id="toolDarken" class="p-2 rounded-lg text-slate-400 hover:text-white text-xs font-medium transition flex items-center justify-center" title="Koyu Ton (Shading -)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Brush Size Selector -->
+                    <div class="flex items-center space-x-1 bg-slate-950/80 px-2 py-1 rounded-xl border border-slate-800 text-xs">
+                        <span class="text-slate-400 text-[11px] font-medium mr-1">Boyut:</span>
+                        <button data-size="1" class="px-2 py-1 rounded bg-emerald-600 text-white font-semibold transition" title="1px Fırça">1x</button>
+                        <button data-size="2" class="px-2 py-1 rounded text-slate-400 hover:text-white transition" title="2px Fırça">2x</button>
+                        <button data-size="3" class="px-2 py-1 rounded text-slate-400 hover:text-white transition" title="3px Fırça">3x</button>
+                        <button data-size="4" class="px-2 py-1 rounded text-slate-400 hover:text-white transition" title="4px Fırça">4x</button>
+                    </div>
+
+                    <!-- Actions & Helpers -->
+                    <div class="flex items-center space-x-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+                        <button id="undoBtn" class="p-2 rounded-lg text-slate-400 hover:text-white text-xs transition" title="Geri Al (Ctrl+Z)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                        </button>
+                        <button id="redoBtn" class="p-2 rounded-lg text-slate-400 hover:text-white text-xs transition" title="İleri Al (Ctrl+Y)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6"/></svg>
+                        </button>
+                        <button id="mirrorToggle" class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-[11px] font-medium transition" title="Simetrik Çizim (Ayna)">Ayna: Kapalı</button>
+                        <button id="gridToggle" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium transition" title="Grid Izgarası">Grid: Açık</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Picker & Palette Section -->
+            <div id="leftSubHeader" class="bg-slate-900/50 px-4 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 transition-colors duration-300">
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
+                        <input type="color" id="colorPicker" value="#3b82f6" title="Renk Seç">
+                        <span id="hexLabel" class="text-xs font-mono font-bold text-slate-300">#3B82F6</span>
+                    </div>
+
+                    <!-- Preset Palette Colors -->
+                    <div class="flex items-center space-x-1.5">
+                        <button class="w-5 h-5 rounded-md bg-black border border-slate-700 hover:scale-110 transition" onclick="setColor('#000000')"></button>
+                        <button class="w-5 h-5 rounded-md bg-white border border-slate-700 hover:scale-110 transition" onclick="setColor('#ffffff')"></button>
+                        <button class="w-5 h-5 rounded-md bg-red-500 border border-slate-700 hover:scale-110 transition" onclick="setColor('#ef4444')"></button>
+                        <button class="w-5 h-5 rounded-md bg-emerald-500 border border-slate-700 hover:scale-110 transition" onclick="setColor('#10b981')"></button>
+                        <button class="w-5 h-5 rounded-md bg-cyan-500 border border-slate-700 hover:scale-110 transition" onclick="setColor('#06b6d4')"></button>
+                        <button class="w-5 h-5 rounded-md bg-blue-600 border border-slate-700 hover:scale-110 transition" onclick="setColor('#2563eb')"></button>
+                        <button class="w-5 h-5 rounded-md bg-purple-600 border border-slate-700 hover:scale-110 transition" onclick="setColor('#9333ea')"></button>
+                        <button class="w-5 h-5 rounded-md bg-pink-500 border border-slate-700 hover:scale-110 transition" onclick="setColor('#ec4899')"></button>
+                        <button class="w-5 h-5 rounded-md bg-amber-800 border border-slate-700 hover:scale-110 transition" onclick="setColor('#78350f')"></button>
+                        <button class="w-5 h-5 rounded-md bg-stone-300 border border-slate-700 hover:scale-110 transition" onclick="setColor('#d6d3d1')"></button>
+                    </div>
+                </div>
+
+                <div class="text-[11px] text-slate-400 flex items-center space-x-2">
+                    <span>Koordinat: <strong id="coordsText" class="text-emerald-400 font-mono">X: 0, Y: 0</strong></span>
+                </div>
+            </div>
+
+            <!-- Workspace: Canvas on left, Layer Manager on right -->
+            <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+                <!-- Canvas Container -->
+                <div id="canvasContainerBg" class="flex-1 bg-slate-900 relative overflow-auto flex items-center justify-center p-4 transition-colors duration-300">
+                    <div class="relative shadow-2xl rounded-lg overflow-hidden border-2 border-slate-700 bg-transparent" id="canvasWrapper">
+                        <canvas id="textureCanvas" class="cursor-crosshair block" width="64" height="64"></canvas>
+                    </div>
+                </div>
+
+                <!-- Layer Management Panel -->
+                <div id="layersPanel" class="w-full md:w-64 bg-slate-950 border-l border-slate-800 flex flex-col shrink-0 transition-colors duration-300">
+                    <div class="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+                        <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wide flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                            <span>Katmanlar (Layers)</span>
+                        </h3>
+                        <button id="addLayerBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1 rounded-md font-medium transition flex items-center gap-1 shadow-sm">
+                            <span>+ Yeni</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Layer Items List -->
+                    <div id="layersList" class="flex-1 overflow-y-auto p-2 space-y-2 max-h-[220px] md:max-h-none">
+                        <!-- Dynamic layers injected here -->
+                    </div>
+
+                    <div class="p-2.5 border-t border-slate-800 bg-slate-900/40 text-[11px] text-slate-400 flex flex-col gap-1">
+                        <div class="flex justify-between items-center">
+                            <span>Seçili Katman: <strong id="activeLayerName" class="text-emerald-400">Katman 1</strong></span>
+                            <button id="clearLayerBtn" class="text-red-400 hover:text-red-300 font-medium">Temizle</button>
+                        </div>
+                        <span class="text-[10px] text-slate-500">Kilitli veya kapalı katmanlar boyanamaz. Başka bir skin eklemek için üst menüden yükleme yapabilirsiniz.</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="leftFooter" class="bg-slate-900/90 px-4 py-2 border-t border-slate-800 text-xs text-slate-400 flex justify-between items-center shrink-0 transition-colors duration-300">
+                <span>Minecraft 64x64 standart şablon katman mimarisi.</span>
+                <span class="text-emerald-400 font-medium">Çoklu Katman Aktif</span>
+            </div>
+        </section>
+
+        <!-- Right Section: 3D Preview -->
+        <section id="rightPanel" class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-colors duration-300">
+            <div id="rightHeader" class="bg-slate-900/90 px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 transition-colors duration-300">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                    <span>3D Karakter Canlı Önizleme</span>
+                </h2>
+                
+                <!-- Camera & Auto-Rotate Controls -->
+                <div class="flex items-center space-x-2">
+                    <button id="autoRotateBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg transition border border-slate-700 flex items-center space-x-1.5" title="Oto Dönüş Aç/Kapat">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <span id="rotateStatusText">Oto-Dönüş: Kapalı</span>
+                    </button>
+                    <button id="resetCamera" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg transition border border-slate-700">Kamerayı Sıfırla</button>
+                </div>
+            </div>
+
+            <!-- Body Part & Overlay Visibility Toggles Bar -->
+            <div id="rightSubHeader" class="bg-slate-950/60 px-4 py-2 border-b border-slate-800 flex flex-wrap items-center gap-1.5 transition-colors duration-300">
+                <span class="text-[11px] text-slate-400 font-medium mr-1">Parçalar:</span>
+                <button data-part="head" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">Kafa</button>
+                <button data-part="hat" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">Kafa Şapka</button>
+                <button data-part="body" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">Gövde</button>
+                <button data-part="jacket" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">Gövde Ceket</button>
+                <button data-part="rArm" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">S. Kol</button>
+                <button data-part="rSleeve" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">S. Kol Ceket</button>
+                <button data-part="lArm" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">Sol Kol</button>
+                <button data-part="lSleeve" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">Sol Kol Ceket</button>
+                <button data-part="rLeg" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">S. Bacak</button>
+                <button data-part="rPants" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">S. Bacak Pantolon</button>
+                <button data-part="lLeg" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">Sol Bacak</button>
+                <button data-part="lPants" class="px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium">Sol Bacak Pantolon</button>
+            </div>
+
+            <!-- 3D Canvas Container -->
+            <div id="canvas3dContainer" class="flex-1 relative bg-gradient-to-b from-slate-900 to-slate-950 overflow-hidden cursor-grab active:cursor-grabbing transition-colors duration-300">
+                <!-- ThreeJS canvas injected here -->
+            </div>
+
+            <div id="rightFooter" class="bg-slate-900/90 px-4 py-2 border-t border-slate-800 text-xs text-slate-400 flex justify-between items-center transition-colors duration-300">
+                <span id="modelInfoText">Steve (Klasik Kalın Kol - 4px genişlik) aktif.</span>
+                <span class="text-emerald-400 font-medium">Canlı Senkronizasyon Aktif</span>
+            </div>
+        </section>
+    </main>
+
+    <div id="nickModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm hidden">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-100 flex items-center space-x-2">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <span>Minecraft Nick ile Skin Çek</span>
+                </h3>
+                <button id="closeNickModal" class="text-slate-400 hover:text-slate-200 text-lg">&times;</button>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-xs text-slate-300 font-medium block">Minecraft Premium Oyuncu Adı (Nick):</label>
+                <input type="text" id="minecraftUsernameInput" placeholder="Örn: zartheusMC, Loniazz, Ristyxx" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition">
+                <p class="text-[11px] text-slate-500">Oyuncunun resmi Mojang / Crafatar skin servisi üzerinden verisi çekilerek aktif katmana aktarılacaktır.</p>
+            </div>
+
+            <div id="nickErrorMsg" class="text-xs text-red-400 hidden"></div>
+
+            <div class="flex justify-end space-x-2 pt-2">
+                <button id="cancelNickModal" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition">İptal</button>
+                <button id="fetchNickSkinBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition flex items-center space-x-1.5">
+                    <span>Skini Yükle</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas2D = document.getElementById('textureCanvas');
+        const ctx2D = canvas2D.getContext('2d', { willReadFrequently: true });
+        
+        let currentTool = 'brush'; // brush, eraser, bucket, picker, lighten, darken
+        let currentBrushSize = 1;
+        let currentColor = '#3b82f6';
+        let isDrawing = false;
+        let isAutoRotating = false;
+        let isMirrorActive = false;
+        let isGridActive = true;
+        let currentModelType = 'steve'; // 'steve' or 'alex'
+        let currentTheme = 'dark'; // 'dark', 'light', 'winter'
+
+        // --- THEME SWITCHER SYSTEM ---
+        const appBody = document.getElementById('appBody');
+        const appHeader = document.getElementById('appHeader');
+        const leftPanel = document.getElementById('leftPanel');
+        const leftHeader = document.getElementById('leftHeader');
+        const leftSubHeader = document.getElementById('leftSubHeader');
+        const canvasContainerBg = document.getElementById('canvasContainerBg');
+        const layersPanel = document.getElementById('layersPanel');
+        const leftFooter = document.getElementById('leftFooter');
+        const rightPanel = document.getElementById('rightPanel');
+        const rightHeader = document.getElementById('rightHeader');
+        const rightSubHeader = document.getElementById('rightSubHeader');
+        const canvas3dContainer = document.getElementById('canvas3dContainer');
+        const rightFooter = document.getElementById('rightFooter');
+        const themeSwitcherContainer = document.getElementById('themeSwitcherContainer');
+
+        let snowflakesInterval = null;
+
+        function setTheme(theme) {
+            currentTheme = theme;
+            
+            // Update active button styles in theme switcher
+            themeSwitcherContainer.querySelectorAll('button').forEach(btn => {
+                const btnTheme = btn.getAttribute('data-theme');
+                if (btnTheme === theme) {
+                    if (theme === 'winter') {
+                        btn.className = "px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-sky-500 to-indigo-600 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-md shadow-sky-500/30";
+                    } else {
+                        btn.className = "px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold transition flex items-center space-x-1.5 shadow-sm";
+                    }
+                } else {
+                    btn.className = "px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white text-xs font-semibold transition flex items-center space-x-1.5";
+                }
+            });
+
+            // Clear previous snowfall if active
+            if (snowflakesInterval) {
+                clearInterval(snowflakesInterval);
+                snowflakesInterval = null;
+                document.querySelectorAll('.snowflake').forEach(el => el.remove());
+            }
+
+            const vignette = document.getElementById('winterVignette');
+
+            if (theme === 'dark') {
+                appBody.className = "bg-slate-950 text-slate-100 h-full flex flex-col overflow-hidden transition-colors duration-500";
+                appHeader.className = "bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex items-center justify-between shrink-0 shadow-lg z-10 transition-colors duration-500";
+                leftPanel.className = "flex-1 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-colors duration-500";
+                leftHeader.className = "bg-slate-900/90 px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 transition-colors duration-500";
+                leftSubHeader.className = "bg-slate-900/50 px-4 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 transition-colors duration-500";
+                canvasContainerBg.className = "flex-1 bg-slate-900 relative overflow-auto flex items-center justify-center p-4 transition-colors duration-500";
+                layersPanel.className = "w-full md:w-64 bg-slate-950 border-l border-slate-800 flex flex-col shrink-0 transition-colors duration-500";
+                leftFooter.className = "bg-slate-900/90 px-4 py-2 border-t border-slate-800 text-xs text-slate-400 flex justify-between items-center shrink-0 transition-colors duration-500";
+                rightPanel.className = "flex-1 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-colors duration-500";
+                rightHeader.className = "bg-slate-900/90 px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 transition-colors duration-500";
+                rightSubHeader.className = "bg-slate-950/60 px-4 py-2 border-b border-slate-800 flex flex-wrap items-center gap-1.5 transition-colors duration-500";
+                canvas3dContainer.className = "flex-1 relative bg-gradient-to-b from-slate-900 to-slate-950 overflow-hidden cursor-grab active:cursor-grabbing transition-colors duration-500";
+                rightFooter.className = "bg-slate-900/90 px-4 py-2 border-t border-slate-800 text-xs text-slate-400 flex justify-between items-center transition-colors duration-500";
+                if (vignette) vignette.classList.remove('active');
+            } else if (theme === 'light') {
+                appBody.className = "bg-slate-100 text-slate-800 h-full flex flex-col overflow-hidden transition-colors duration-500";
+                appHeader.className = "bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between shrink-0 shadow-sm z-10 transition-colors duration-500";
+                leftPanel.className = "flex-1 bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden shadow-lg transition-colors duration-500";
+                leftHeader.className = "bg-slate-50 px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 transition-colors duration-500";
+                leftSubHeader.className = "bg-slate-50/50 px-4 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 transition-colors duration-500";
+                canvasContainerBg.className = "flex-1 bg-slate-100 relative overflow-auto flex items-center justify-center p-4 transition-colors duration-500";
+                layersPanel.className = "w-full md:w-64 bg-slate-50 border-l border-slate-200 flex flex-col shrink-0 transition-colors duration-500";
+                leftFooter.className = "bg-slate-50 px-4 py-2 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center shrink-0 transition-colors duration-500";
+                rightPanel.className = "flex-1 bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden shadow-lg transition-colors duration-500";
+                rightHeader.className = "bg-slate-50 px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 transition-colors duration-500";
+                rightSubHeader.className = "bg-slate-50/80 px-4 py-2 border-b border-slate-200 flex flex-wrap items-center gap-1.5 transition-colors duration-500";
+                canvas3dContainer.className = "flex-1 relative bg-gradient-to-b from-sky-50 to-blue-100 overflow-hidden cursor-grab active:cursor-grabbing transition-colors duration-500";
+                rightFooter.className = "bg-slate-50 px-4 py-2 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center transition-colors duration-500";
+                if (vignette) vignette.classList.remove('active');
+            } else if (theme === 'winter') {
+                appBody.className = "bg-slate-950 text-sky-100 h-full flex flex-col overflow-hidden transition-colors duration-500";
+                appHeader.className = "winter-glass border-b border-sky-800/50 px-6 py-3.5 flex items-center justify-between shrink-0 shadow-xl z-10 transition-colors duration-500";
+                leftPanel.className = "flex-1 winter-glass rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-colors duration-500";
+                leftHeader.className = "bg-sky-950/40 px-4 py-3 border-b border-sky-800/40 flex flex-wrap items-center justify-between gap-3 transition-colors duration-500";
+                leftSubHeader.className = "bg-sky-950/25 px-4 py-2 border-b border-sky-800/30 flex flex-wrap items-center justify-between gap-2 transition-colors duration-500";
+                canvasContainerBg.className = "flex-1 bg-gradient-to-b from-slate-950/80 via-sky-950/40 to-indigo-950/70 relative overflow-auto flex items-center justify-center p-4 transition-colors duration-500";
+                layersPanel.className = "w-full md:w-64 bg-slate-950/70 border-l border-sky-800/40 flex flex-col shrink-0 transition-colors duration-500";
+                leftFooter.className = "bg-sky-950/40 px-4 py-2 border-t border-sky-800/40 text-xs text-sky-300 flex justify-between items-center shrink-0 transition-colors duration-500";
+                rightPanel.className = "flex-1 winter-glass rounded-2xl flex flex-col overflow-hidden shadow-2xl transition-colors duration-500";
+                rightHeader.className = "bg-sky-950/40 px-4 py-3 border-b border-sky-800/40 flex flex-wrap items-center justify-between gap-2 transition-colors duration-500";
+                rightSubHeader.className = "bg-sky-950/30 px-4 py-2 border-b border-sky-800/30 flex flex-wrap items-center gap-1.5 transition-colors duration-500";
+                canvas3dContainer.className = "flex-1 relative bg-gradient-to-b from-sky-950 via-indigo-950 to-slate-950 overflow-hidden cursor-grab active:cursor-grabbing transition-colors duration-500";
+                rightFooter.className = "bg-sky-950/40 px-4 py-2 border-t border-sky-800/40 text-xs text-sky-300 flex justify-between items-center transition-colors duration-500";
+
+                if (vignette) vignette.classList.add('active');
+
+                // Instant initial population across screen height so the screen feels alive immediately
+                for (let i = 0; i < 35; i++) {
+                    spawnSnowflake(Math.random() * window.innerHeight);
+                }
+
+                // Continuous realistic snowfall physics cycle
+                snowflakesInterval = setInterval(() => {
+                    for (let i = 0; i < 2; i++) {
+                        spawnSnowflake();
+                    }
+                }, 75);
+            }
+        }
+
+        function spawnSnowflake(startY = null) {
+            if (currentTheme !== 'winter') return;
+
+            const sf = document.createElement('div');
+            sf.className = 'snowflake';
+
+            // Parallax Tier Distribution:
+            // 45% Micro Snow Dust (Background), 40% Fluffy Snow Flakes (Midground), 15% Ice Crystals (Foreground)
+            const randType = Math.random();
+            let size, duration, opacity, swayX, blur, bg, shadow;
+
+            if (randType < 0.45) {
+                // Micro Snow Dust
+                size = Math.random() * 2 + 1.5;
+                duration = Math.random() * 5 + 6;
+                opacity = Math.random() * 0.35 + 0.35;
+                swayX = (Math.random() - 0.5) * 45;
+                blur = '1px';
+                bg = 'rgba(255, 255, 255, 0.9)';
+                shadow = 'none';
+            } else if (randType < 0.85) {
+                // Fluffy Midground Snow
+                size = Math.random() * 4 + 4.5;
+                duration = Math.random() * 3.5 + 4;
+                opacity = Math.random() * 0.3 + 0.65;
+                swayX = (Math.random() - 0.5) * 75;
+                blur = '0px';
+                bg = 'rgba(255, 255, 255, 0.96)';
+                shadow = '0 0 6px rgba(186, 230, 253, 0.85)';
+            } else {
+                // Foreground Ice Crystal / Glowing Flake
+                size = Math.random() * 6 + 7;
+                duration = Math.random() * 2.5 + 3.2;
+                opacity = Math.random() * 0.2 + 0.8;
+                swayX = (Math.random() - 0.5) * 110;
+                blur = '0.3px';
+                bg = 'radial-gradient(circle, #ffffff 0%, #e0f2fe 75%, rgba(186,230,253,0.6) 100%)';
+                shadow = '0 0 14px rgba(56, 189, 248, 0.95), 0 0 4px rgba(255, 255, 255, 1)';
+
+                if (Math.random() < 0.35) {
+                    const symbols = ['❄', '❅', '❆'];
+                    sf.innerText = symbols[Math.floor(Math.random() * symbols.length)];
+                    sf.style.fontSize = `${size * 1.3}px`;
+                    sf.style.color = '#f0f9ff';
+                    sf.style.lineHeight = '1';
+                    sf.style.textShadow = '0 0 8px rgba(56, 189, 248, 0.9)';
+                    bg = 'transparent';
+                    shadow = 'none';
+                }
+            }
+
+            sf.style.left = Math.random() * window.innerWidth + 'px';
+            sf.style.width = size + 'px';
+            sf.style.height = size + 'px';
+            sf.style.background = bg;
+            sf.style.boxShadow = shadow;
+            sf.style.filter = blur !== '0px' ? `blur(${blur})` : 'none';
+            sf.style.setProperty('--sway-x', `${swayX}px`);
+            sf.style.setProperty('--max-opacity', opacity);
+            sf.style.animationDuration = duration + 's';
+            
+            if (startY !== null) {
+                sf.style.top = startY + 'px';
+                sf.style.animationDelay = `-${Math.random() * duration}s`;
+            } else {
+                sf.style.animationDelay = `${Math.random() * 0.4}s`;
+            }
+
+            document.body.appendChild(sf);
+
+            setTimeout(() => {
+                if (sf.parentNode) sf.remove();
+            }, (duration + 1) * 1000);
+        }
+
+        themeSwitcherContainer.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setTheme(btn.getAttribute('data-theme'));
+            });
+        });
+
+        // --- BRUSH SIZE SELECTOR ---
+        document.querySelectorAll('[data-size]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentBrushSize = parseInt(btn.getAttribute('data-size'));
+                document.querySelectorAll('[data-size]').forEach(b => {
+                    b.className = "px-2 py-1 rounded text-slate-400 hover:text-white transition";
+                });
+                btn.className = "px-2 py-1 rounded bg-emerald-600 text-white font-semibold transition";
+            });
+        });
+
+        // --- LAYER SYSTEM STATE ---
+        let layers = [];
+        let activeLayerId = 1;
+        let nextLayerId = 1;
+
+        // Pixel scale multiplier for 2D canvas display zoom
+        const PIXEL_SCALE = 8;
+        canvas2D.style.width = (64 * PIXEL_SCALE) + 'px';
+        canvas2D.style.height = (64 * PIXEL_SCALE) + 'px';
+        canvas2D.width = 64;
+        canvas2D.height = 64;
+
+        function createLayer(name = null) {
+            const id = nextLayerId++;
+            const layerCanvas = document.createElement('canvas');
+            layerCanvas.width = 64;
+            layerCanvas.height = 64;
+            const layerCtx = layerCanvas.getContext('2d', { willReadFrequently: true });
+            
+            return {
+                id: id,
+                name: name || `Katman ${id}`,
+                canvas: layerCanvas,
+                ctx: layerCtx,
+                visible: true,
+                opacity: 1.0,
+                history: [],
+                redoStack: []
+            };
+        }
+
+        function initLayers() {
+            layers = [createLayer('Ana Gövde')];
+            activeLayerId = layers[0].id;
+            renderLayersUI();
+            updateCompositeCanvas();
+        }
+
+        function getActiveLayer() {
+            return layers.find(l => l.id === activeLayerId) || layers[0];
+        }
+
+        // Save History for Undo / Redo per layer
+        function saveLayerState(layer) {
+            if (layer.history.length > 25) layer.history.shift();
+            layer.history.push(layer.ctx.getImageData(0, 0, 64, 64));
+            layer.redoStack = [];
+        }
+
+        function undoState() {
+            const layer = getActiveLayer();
+            if (layer && layer.history.length > 0) {
+                layer.redoStack.push(layer.ctx.getImageData(0, 0, 64, 64));
+                const prev = layer.history.pop();
+                layer.ctx.putImageData(prev, 0, 0);
+                updateCompositeCanvas();
+            }
+        }
+
+        function redoState() {
+            const layer = getActiveLayer();
+            if (layer && layer.redoStack.length > 0) {
+                layer.history.push(layer.ctx.getImageData(0, 0, 64, 64));
+                const next = layer.redoStack.pop();
+                layer.ctx.putImageData(next, 0, 0);
+                updateCompositeCanvas();
+            }
+        }
+
+        document.getElementById('undoBtn').addEventListener('click', undoState);
+        document.getElementById('redoBtn').addEventListener('click', redoState);
+
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                if (e.shiftKey) { redoState(); } else { undoState(); }
+                e.preventDefault();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                redoState();
+                e.preventDefault();
+            }
+        });
+
+        // --- COMPOSITE LAYERS TO MAIN DISPLAY CANVAS & 3D TEXTURE ---
+        function updateCompositeCanvas() {
+            ctx2D.clearRect(0, 0, 64, 64);
+            layers.forEach(layer => {
+                if (layer.visible) {
+                    ctx2D.save();
+                    ctx2D.globalAlpha = layer.opacity;
+                    ctx2D.drawImage(layer.canvas, 0, 0);
+                    ctx2D.restore();
+                }
+            });
+            skinTexture.needsUpdate = true;
+        }
+
+        // --- RENDER LAYERS UI ---
+        function renderLayersUI() {
+            const list = document.getElementById('layersList');
+            list.innerHTML = '';
+            
+            [...layers].reverse().forEach(layer => {
+                const isActive = layer.id === activeLayerId;
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between p-2 rounded-xl border transition ${isActive ? 'bg-emerald-950/40 border-emerald-500/50 shadow' : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'}`;
+                
+                div.innerHTML = `
+                    <div class="flex items-center space-x-2 overflow-hidden cursor-pointer flex-1" onclick="setActiveLayer(${layer.id})">
+                        <button class="text-slate-400 hover:text-white transition p-1" onclick="event.stopPropagation(); toggleLayerVisibility(${layer.id})" title="Gizle/Göster">
+                            ${layer.visible ? '<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>' : '<svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.05 10.05 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.027 10.027 0 01-4.132 5.411m0 0L21 21"/></svg>'}
+                        </button>
+                        <span class="text-xs font-medium truncate ${isActive ? 'text-emerald-300 font-semibold' : 'text-slate-300'}">${layer.name}</span>
+                    </div>
+                    <div class="flex items-center space-x-1 shrink-0">
+                        <button onclick="event.stopPropagation(); moveLayer(${layer.id}, 'up')" class="p-1 text-slate-400 hover:text-white" title="Yukarı Taşı">▲</button>
+                        <button onclick="event.stopPropagation(); moveLayer(${layer.id}, 'down')" class="p-1 text-slate-400 hover:text-white" title="Aşağı Taşı">▼</button>
+                        ${layers.length > 1 ? `<button onclick="event.stopPropagation(); deleteLayer(${layer.id})" class="p-1 text-red-400 hover:text-red-300 ml-1" title="Katmanı Sil">&times;</button>` : ''}
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+
+            const active = getActiveLayer();
+            document.getElementById('activeLayerName').innerText = active ? active.name : '-';
+        }
+
+        window.setActiveLayer = function(id) {
+            activeLayerId = id;
+            renderLayersUI();
+        };
+
+        window.toggleLayerVisibility = function(id) {
+            const layer = layers.find(l => l.id === id);
+            if (layer) {
+                layer.visible = !layer.visible;
+                renderLayersUI();
+                updateCompositeCanvas();
+            }
+        };
+
+        window.moveLayer = function(id, direction) {
+            const idx = layers.findIndex(l => l.id === id);
+            if (idx === -1) return;
+            if (direction === 'up' && idx < layers.length - 1) {
+                const temp = layers[idx];
+                layers[idx] = layers[idx + 1];
+                layers[idx + 1] = temp;
+            } else if (direction === 'down' && idx > 0) {
+                const temp = layers[idx];
+                layers[idx] = layers[idx - 1];
+                layers[idx - 1] = temp;
+            }
+            renderLayersUI();
+            updateCompositeCanvas();
+        };
+
+        window.deleteLayer = function(id) {
+            if (layers.length <= 1) return;
+            layers = layers.filter(l => l.id !== id);
+            activeLayerId = layers[layers.length - 1].id;
+            renderLayersUI();
+            updateCompositeCanvas();
+        };
+
+        document.getElementById('addLayerBtn').addEventListener('click', () => {
+            const newL = createLayer();
+            layers.push(newL);
+            activeLayerId = newL.id;
+            renderLayersUI();
+            updateCompositeCanvas();
+        });
+
+        document.getElementById('clearLayerBtn').addEventListener('click', () => {
+            const layer = getActiveLayer();
+            if (layer) {
+                saveLayerState(layer);
+                layer.ctx.clearRect(0, 0, 64, 64);
+                updateCompositeCanvas();
+            }
+        });
+
+        // --- THREE.JS 3D SETUP ---
+        const container3D = document.getElementById('canvas3dContainer');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, container3D.clientWidth / container3D.clientHeight, 0.1, 1000);
+        camera.position.set(0, 1.5, 28);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container3D.clientWidth, container3D.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container3D.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.target.set(0, 1.5, 0);
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 15);
+        scene.add(directionalLight);
+
+        const backLight = new THREE.DirectionalLight(0x94a3b8, 0.4);
+        backLight.position.set(-10, -10, -15);
+        scene.add(backLight);
+
+        // Minecraft Skin Texture
+        let skinTexture = new THREE.CanvasTexture(canvas2D);
+        skinTexture.magFilter = THREE.NearestFilter;
+        skinTexture.minFilter = THREE.NearestFilter;
+
+        const characterGroup = new THREE.Group();
+        scene.add(characterGroup);
+
+        const skinMaterial = new THREE.MeshLambertMaterial({ map: skinTexture, transparent: true, alphaTest: 0.1 });
+        let skinParts = {};
+
+        function buildMinecraftModel() {
+            while(characterGroup.children.length > 0) { 
+                characterGroup.remove(characterGroup.children[0]); 
+            }
+
+            // Body Group (Y: 6 to 12)
+            const bodyGeo = new THREE.BoxGeometry(4, 6, 2);
+            adjustBoxUVs(bodyGeo, 16, 16, 8, 12, 4);
+            const body = new THREE.Mesh(bodyGeo, skinMaterial);
+            body.position.y = 1.5;
+            characterGroup.add(body);
+            skinParts.body = body;
+
+            // Jacket Overlay
+            const jacketGeo = new THREE.BoxGeometry(4.1, 6.1, 2.1);
+            adjustBoxUVs(jacketGeo, 16, 32, 8, 12, 4);
+            const jacket = new THREE.Mesh(jacketGeo, skinMaterial);
+            jacket.position.y = 1.5;
+            characterGroup.add(jacket);
+            skinParts.jacket = jacket;
+
+            // Head Group (Y: 12 to 16, perfectly flush on body top Y=12)
+            const headGeo = new THREE.BoxGeometry(4, 4, 4);
+            adjustBoxUVs(headGeo, 0, 0, 8, 8, 8);
+            const head = new THREE.Mesh(headGeo, skinMaterial);
+            head.position.y = 6.5;
+            characterGroup.add(head);
+            skinParts.head = head;
+
+            // Hat Overlay
+            const hatGeo = new THREE.BoxGeometry(4.1, 4.1, 4.1);
+            adjustBoxUVs(hatGeo, 32, 0, 8, 8, 8);
+            const hat = new THREE.Mesh(hatGeo, skinMaterial);
+            hat.position.y = 6.5;
+            characterGroup.add(hat);
+            skinParts.hat = hat;
+
+            const armWidth = currentModelType === 'alex' ? 3 : 4;
+            const actualArmWidth = currentModelType === 'alex' ? 1.5 : 2;
+            const actualSleeveWidth = currentModelType === 'alex' ? 1.55 : 2.1;
+            const armXOffset = currentModelType === 'alex' ? 2.75 : 3;
+
+            // Right Arm
+            const rArmGeo = new THREE.BoxGeometry(actualArmWidth, 6, 2);
+            adjustBoxUVs(rArmGeo, 40, 16, armWidth, 12, 4);
+            const rArm = new THREE.Mesh(rArmGeo, skinMaterial);
+            rArm.position.set(-armXOffset, 1.5, 0);
+            characterGroup.add(rArm);
+            skinParts.rArm = rArm;
+
+            const rSleeveGeo = new THREE.BoxGeometry(actualSleeveWidth, 6.1, 2.1);
+            adjustBoxUVs(rSleeveGeo, 40, 32, armWidth, 12, 4);
+            const rSleeve = new THREE.Mesh(rSleeveGeo, skinMaterial);
+            rSleeve.position.set(-armXOffset, 1.5, 0);
+            characterGroup.add(rSleeve);
+            skinParts.rSleeve = rSleeve;
+
+            // Left Arm
+            const lArmGeo = new THREE.BoxGeometry(actualArmWidth, 6, 2);
+            adjustBoxUVs(lArmGeo, 32, 48, armWidth, 12, 4);
+            const lArm = new THREE.Mesh(lArmGeo, skinMaterial);
+            lArm.position.set(armXOffset, 1.5, 0);
+            characterGroup.add(lArm);
+            skinParts.lArm = lArm;
+
+            const lSleeveGeo = new THREE.BoxGeometry(actualSleeveWidth, 6.1, 2.1);
+            adjustBoxUVs(lSleeveGeo, 48, 48, armWidth, 12, 4);
+            const lSleeve = new THREE.Mesh(lSleeveGeo, skinMaterial);
+            lSleeve.position.set(armXOffset, 1.5, 0);
+            characterGroup.add(lSleeve);
+            skinParts.lSleeve = lSleeve;
+
+            // Right Leg
+            const rLegGeo = new THREE.BoxGeometry(2, 6, 2);
+            adjustBoxUVs(rLegGeo, 0, 16, 4, 12, 4);
+            const rLeg = new THREE.Mesh(rLegGeo, skinMaterial);
+            rLeg.position.set(-1, -4.5, 0);
+            characterGroup.add(rLeg);
+            skinParts.rLeg = rLeg;
+
+            const rPantsGeo = new THREE.BoxGeometry(2.1, 6.1, 2.1);
+            adjustBoxUVs(rPantsGeo, 0, 32, 4, 12, 4);
+            const rPants = new THREE.Mesh(rPantsGeo, skinMaterial);
+            rPants.position.set(-1, -4.5, 0);
+            characterGroup.add(rPants);
+            skinParts.rPants = rPants;
+
+            // Left Leg
+            const lLegGeo = new THREE.BoxGeometry(2, 6, 2);
+            adjustBoxUVs(lLegGeo, 16, 48, 4, 12, 4);
+            const lLeg = new THREE.Mesh(lLegGeo, skinMaterial);
+            lLeg.position.set(1, -4.5, 0);
+            characterGroup.add(lLeg);
+            skinParts.lLeg = lLeg;
+
+            const lPantsGeo = new THREE.BoxGeometry(2.1, 6.1, 2.1);
+            adjustBoxUVs(lPantsGeo, 0, 48, 4, 12, 4);
+            const lPants = new THREE.Mesh(lPantsGeo, skinMaterial);
+            lPants.position.set(1, -4.5, 0);
+            characterGroup.add(lPants);
+            skinParts.lPants = lPants;
+
+            characterGroup.position.y = 0;
+        }
+
+        function adjustBoxUVs(geometry, u, v, w, h, d) {
+            const uvAttr = geometry.attributes.uv;
+            const tw = 64, th = 64;
+            
+            const setFaceUVs = (faceIndex, x, y, width, height) => {
+                const x0 = x / tw, x1 = (x + width) / tw;
+                const y0 = 1.0 - (y + height) / th, y1 = 1.0 - y / th;
+                
+                const i = faceIndex * 4;
+                uvAttr.setXY(i,     x0, y1);
+                uvAttr.setXY(i + 1, x1, y1);
+                uvAttr.setXY(i + 2, x0, y0);
+                uvAttr.setXY(i + 3, x1, y0);
+            };
+
+            setFaceUVs(0, u + d + w, v + d, d, h);
+            setFaceUVs(1, u, v + d, d, h);
+            setFaceUVs(2, u + d, v, w, d);
+            setFaceUVs(3, u + d + w, v, w, d);
+            setFaceUVs(4, u + d, v + d, w, h);
+            setFaceUVs(5, u + d * 2 + w, v + d, w, h);
+            
+            uvAttr.needsUpdate = true;
+        }
+
+        buildMinecraftModel();
+
+        // --- MODEL TYPE TOGGLE (STEVE vs ALEX) ---
+        const modelTypeToggle = document.getElementById('modelTypeToggle');
+        const modelTypeText = document.getElementById('modelTypeText');
+        const modelInfoText = document.getElementById('modelInfoText');
+
+        if (modelTypeToggle) {
+            modelTypeToggle.addEventListener('click', () => {
+                currentModelType = currentModelType === 'steve' ? 'alex' : 'steve';
+                if (currentModelType === 'alex') {
+                    if (modelTypeText) modelTypeText.innerText = 'Model: Alex (İnce)';
+                    if (modelInfoText) modelInfoText.innerText = 'Alex (İnce Kol - 3px genişlik) aktif.';
+                    modelTypeToggle.className = 'bg-emerald-600/35 text-emerald-300 border border-emerald-500/40 text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center space-x-2 shadow-sm';
+                } else {
+                    if (modelTypeText) modelTypeText.innerText = 'Model: Steve (Kalın)';
+                    if (modelInfoText) modelInfoText.innerText = 'Steve (Klasik Kalın Kol - 4px genişlik) aktif.';
+                    modelTypeToggle.className = 'bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center space-x-2 border border-slate-700 shadow-sm';
+                }
+                buildMinecraftModel();
+            });
+        }
+
+        // --- FLOOD FILL & SHADING ---
+        function hexToRgba(hex) {
+            let c = hex.replace('#', '');
+            if (c.length === 3) c = c.split('').map(x => x + x).join('');
+            const num = parseInt(c, 16);
+            return [(num >> 16) & 255, (num >> 8) & 255, num & 255, 255];
+        }
+
+        function floodFill(layer, startX, startY, fillColorHex) {
+            saveLayerState(layer);
+            const imgData = layer.ctx.getImageData(0, 0, 64, 64);
+            const data = imgData.data;
+            const targetIdx = (startY * 64 + startX) * 4;
+            const targetR = data[targetIdx];
+            const targetG = data[targetIdx + 1];
+            const targetB = data[targetIdx + 2];
+            const targetA = data[targetIdx + 3];
+
+            const [fillR, fillG, fillB, fillA] = hexToRgba(fillColorHex);
+            if (targetR === fillR && targetG === fillG && targetB === fillB && targetA === fillA) return;
+
+            const queue = [[startX, startY]];
+            const visited = new Uint8Array(64 * 64);
+
+            while (queue.length > 0) {
+                const [x, y] = queue.pop();
+                if (x < 0 || x >= 64 || y < 0 || y >= 64) continue;
+                const idx = y * 64 + x;
+                if (visited[idx]) continue;
+                visited[idx] = 1;
+
+                const currIdx = (y * 64 + x) * 4;
+                if (
+                    data[currIdx] === targetR &&
+                    data[currIdx + 1] === targetG &&
+                    data[currIdx + 2] === targetB &&
+                    data[currIdx + 3] === targetA
+                ) {
+                    data[currIdx] = fillR;
+                    data[currIdx + 1] = fillG;
+                    data[currIdx + 2] = fillB;
+                    data[currIdx + 3] = fillA;
+
+                    queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+                }
+            }
+            layer.ctx.putImageData(imgData, 0, 0);
+            updateCompositeCanvas();
+        }
+
+        function adjustBrightness(hex, percent) {
+            let num = parseInt(hex.replace('#',''), 16);
+            let r = (num >> 16) + percent;
+            let g = ((num >> 8) & 0x00ff) + percent;
+            let b = (num & 0x0000ff) + percent;
+            r = Math.min(255, Math.max(0, r));
+            g = Math.min(255, Math.max(0, g));
+            b = Math.min(255, Math.max(0, b));
+            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
+
+        // --- PAINTING INTERACTIONS ---
+        function getCanvasMousePos(e) {
+            const rect = canvas2D.getBoundingClientRect();
+            const scaleX = canvas2D.width / rect.width;
+            const scaleY = canvas2D.height / rect.height;
+            return {
+                x: Math.floor((e.clientX - rect.left) * scaleX),
+                y: Math.floor((e.clientY - rect.top) * scaleY)
+            };
+        }
+
+        canvas2D.addEventListener('mousedown', (e) => {
+            const layer = getActiveLayer();
+            if (!layer || !layer.visible) return;
+            isDrawing = true;
+            saveLayerState(layer);
+            paintAction(e);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            const pos = getCanvasMousePos(e);
+            if (pos.x >= 0 && pos.x < 64 && pos.y >= 0 && pos.y < 64) {
+                document.getElementById('coordsText').innerText = `X: ${pos.x}, Y: ${pos.y}`;
+            }
+            if (!isDrawing) return;
+            paintAction(e);
+        });
+
+        window.addEventListener('mouseup', () => { isDrawing = false; });
+
+        canvas2D.addEventListener('touchstart', (e) => {
+            const layer = getActiveLayer();
+            if (!layer || !layer.visible) return;
+            isDrawing = true;
+            saveLayerState(layer);
+            paintAction(e.touches[0]);
+            e.preventDefault();
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isDrawing) return;
+            paintAction(e.touches[0]);
+            e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('touchend', () => { isDrawing = false; });
+
+        function paintAction(e) {
+            const layer = getActiveLayer();
+            if (!layer || !layer.visible) return;
+
+            const pos = getCanvasMousePos(e);
+            if (pos.x < 0 || pos.x >= 64 || pos.y < 0 || pos.y >= 64) return;
+
+            const ctx = layer.ctx;
+            if (currentTool === 'brush') {
+                ctx.fillStyle = currentColor;
+                ctx.fillRect(pos.x, pos.y, currentBrushSize, currentBrushSize);
+                if (isMirrorActive) {
+                    ctx.fillRect(63 - pos.x - (currentBrushSize - 1), pos.y, currentBrushSize, currentBrushSize);
+                }
+                updateCompositeCanvas();
+            } else if (currentTool === 'eraser') {
+                ctx.clearRect(pos.x, pos.y, currentBrushSize, currentBrushSize);
+                updateCompositeCanvas();
+            } else if (currentTool === 'bucket') {
+                floodFill(layer, pos.x, pos.y, currentColor);
+            } else if (currentTool === 'picker') {
+                const pixel = ctx2D.getImageData(pos.x, pos.y, 1, 1).data;
+                if (pixel[3] > 0) {
+                    const hex = "#" + ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2]).toString(16).slice(1);
+                    setColor(hex);
+                    setTool('brush');
+                }
+            } else if (currentTool === 'lighten' || currentTool === 'darken') {
+                const pixel = ctx.getImageData(pos.x, pos.y, 1, 1).data;
+                if (pixel[3] > 0) {
+                    const hex = "#" + ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2]).toString(16).slice(1);
+                    const newHex = adjustBrightness(hex, currentTool === 'lighten' ? 20 : -20);
+                    ctx.fillStyle = newHex;
+                    ctx.fillRect(pos.x, pos.y, currentBrushSize, currentBrushSize);
+                    updateCompositeCanvas();
+                }
+            }
+        }
+
+        // --- TOOLBAR & COLOR CONTROLS ---
+        function setColor(hex) {
+            currentColor = hex;
+            document.getElementById('colorPicker').value = hex;
+            document.getElementById('hexLabel').innerText = hex.toUpperCase();
+        }
+
+        document.getElementById('colorPicker').addEventListener('input', (e) => {
+            setColor(e.target.value);
+        });
+
+        const btnBrush = document.getElementById('toolBrush');
+        const btnEraser = document.getElementById('toolEraser');
+        const btnBucket = document.getElementById('toolBucket');
+        const btnPicker = document.getElementById('toolPicker');
+        const btnLighten = document.getElementById('toolLighten');
+        const btnDarken = document.getElementById('toolDarken');
+
+        function setTool(tool) {
+            currentTool = tool;
+            [btnBrush, btnEraser, btnBucket, btnPicker, btnLighten, btnDarken].forEach(b => {
+                b.className = "p-2 rounded-lg text-slate-400 hover:text-white text-xs font-medium transition flex items-center justify-center";
+            });
+            const activeMap = {
+                brush: btnBrush, eraser: btnEraser, bucket: btnBucket,
+                picker: btnPicker, lighten: btnLighten, darken: btnDarken
+            };
+            if (activeMap[tool]) {
+                activeMap[tool].className = "p-2 rounded-lg bg-emerald-600 text-white text-xs font-medium transition flex items-center justify-center shadow-md";
+            }
+        }
+
+        btnBrush.addEventListener('click', () => setTool('brush'));
+        btnEraser.addEventListener('click', () => setTool('eraser'));
+        btnBucket.addEventListener('click', () => setTool('bucket'));
+        btnPicker.addEventListener('click', () => setTool('picker'));
+        btnLighten.addEventListener('click', () => setTool('lighten'));
+        btnDarken.addEventListener('click', () => setTool('darken'));
+
+        const mirrorToggle = document.getElementById('mirrorToggle');
+        mirrorToggle.addEventListener('click', () => {
+            isMirrorActive = !isMirrorActive;
+            mirrorToggle.className = isMirrorActive ? "px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-medium transition shadow-sm" : "px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-[11px] font-medium transition";
+            mirrorToggle.innerText = `Ayna: ${isMirrorActive ? 'Açık' : 'Kapalı'}`;
+        });
+
+        const gridToggle = document.getElementById('gridToggle');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        gridToggle.addEventListener('click', () => {
+            isGridActive = !isGridActive;
+            gridToggle.className = isGridActive ? "px-2.5 py-1.5 rounded-lg bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium transition" : "px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-400 text-[11px] font-medium transition";
+            gridToggle.innerText = `Grid: ${isGridActive ? 'Açık' : 'Kapalı'}`;
+            canvasWrapper.style.backgroundImage = isGridActive ? 'linear-gradient(45deg, #1e293b 25%, transparent 25%), linear-gradient(-45deg, #1e293b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1e293b 75%), linear-gradient(-45deg, transparent 75%, #1e293b 75%)' : 'none';
+            canvasWrapper.style.backgroundSize = '16px 16px';
+        });
+
+        // --- UPLOAD SKIN TO ACTIVE LAYER & DOWNLOAD ---
+        document.getElementById('skinInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const layer = getActiveLayer();
+                    if (!layer) return;
+                    saveLayerState(layer);
+                    layer.ctx.clearRect(0, 0, 64, 64);
+                    layer.ctx.drawImage(img, 0, 0, 64, 64);
+                    updateCompositeCanvas();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // --- STREAMING_CHUNK:Implementing Nickname Skin Fetch Logic via Crafatar & Mojang API ---
+        const nickSkinBtn = document.getElementById('nickSkinBtn');
+        const nickModal = document.getElementById('nickModal');
+        const closeNickModal = document.getElementById('closeNickModal');
+        const cancelNickModal = document.getElementById('cancelNickModal');
+        const fetchNickSkinBtn = document.getElementById('fetchNickSkinBtn');
+        const minecraftUsernameInput = document.getElementById('minecraftUsernameInput');
+        const nickErrorMsg = document.getElementById('nickErrorMsg');
+
+        nickSkinBtn.addEventListener('click', () => {
+            nickModal.classList.remove('hidden');
+            minecraftUsernameInput.value = '';
+            nickErrorMsg.classList.add('hidden');
+            minecraftUsernameInput.focus();
+        });
+
+        function closeNickDialog() {
+            nickModal.classList.add('hidden');
+        }
+
+        closeNickModal.addEventListener('click', closeNickDialog);
+        cancelNickModal.addEventListener('click', closeNickDialog);
+        nickModal.addEventListener('click', (e) => {
+            if (e.target === nickModal) closeNickDialog();
+        });
+
+        async function fetchSkinByUsername() {
+            const username = minecraftUsernameInput.value.trim();
+            if (!username) {
+                nickErrorMsg.innerText = "Lütfen geçerli bir oyuncu adı giriniz.";
+                nickErrorMsg.classList.remove('hidden');
+                return;
+            }
+
+            nickErrorMsg.classList.add('hidden');
+            fetchNickSkinBtn.innerText = "Yükleniyor...";
+            fetchNickSkinBtn.disabled = true;
+
+            try {
+                // Direct Crafatar username endpoint (Crafatar supports direct username lookup or UUID)
+                const skinImgUrl = `https://crafatar.com/skins/${encodeURIComponent(username)}`;
+                
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = function() {
+                    // Verify if it loaded a valid skin (not a 404 default Steve/Alex fallback or transparent error)
+                    const layer = getActiveLayer();
+                    if (layer) {
+                        saveLayerState(layer);
+                        layer.ctx.clearRect(0, 0, 64, 64);
+                        layer.ctx.drawImage(img, 0, 0, 64, 64);
+                        updateCompositeCanvas();
+                    }
+                    fetchNickSkinBtn.innerText = "Skini Yükle";
+                    fetchNickSkinBtn.disabled = false;
+                    closeNickDialog();
+                };
+                img.onerror = function() {
+                    // Fallback to Minotar skin API if Crafatar fails
+                    const minotarUrl = `https://minotar.net/skin/${encodeURIComponent(username)}`;
+                    const imgMinotar = new Image();
+                    imgMinotar.crossOrigin = "Anonymous";
+                    imgMinotar.onload = function() {
+                        const layer = getActiveLayer();
+                        if (layer) {
+                            saveLayerState(layer);
+                            layer.ctx.clearRect(0, 0, 64, 64);
+                            layer.ctx.drawImage(imgMinotar, 0, 0, 64, 64);
+                            updateCompositeCanvas();
+                        }
+                        fetchNickSkinBtn.innerText = "Skini Yükle";
+                        fetchNickSkinBtn.disabled = false;
+                        closeNickDialog();
+                    };
+                    imgMinotar.onerror = function() {
+                        nickErrorMsg.innerText = "Skin bulunamadı. Oyuncu adını kontrol edin.";
+                        nickErrorMsg.classList.remove('hidden');
+                        fetchNickSkinBtn.innerText = "Skini Yükle";
+                        fetchNickSkinBtn.disabled = false;
+                    };
+                    imgMinotar.src = minotarUrl;
+                };
+                img.src = skinImgUrl;
+
+            } catch (err) {
+                nickErrorMsg.innerText = "Skin yüklenemedi. Oyuncu adını kontrol edin.";
+                nickErrorMsg.classList.remove('hidden');
+                fetchNickSkinBtn.innerText = "Skini Yükle";
+                fetchNickSkinBtn.disabled = false;
+            }
+        }
+
+        fetchNickSkinBtn.addEventListener('click', fetchSkinByUsername);
+        minecraftUsernameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                fetchSkinByUsername();
+            }
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'minecraft_skin_merged.png';
+            link.href = canvas2D.toDataURL('image/png');
+            link.click();
+        });
+
+        // --- 3D PART VISIBILITY & AUTO-ROTATE CONTROLS ---
+        document.querySelectorAll('[data-part]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const partKey = btn.getAttribute('data-part');
+                if (skinParts[partKey]) {
+                    const isVisible = skinParts[partKey].visible;
+                    skinParts[partKey].visible = !isVisible;
+                    if (!isVisible) {
+                        btn.className = "px-2 py-1 bg-emerald-600 text-white rounded text-[11px] transition font-medium";
+                    } else {
+                        btn.className = "px-2 py-1 bg-slate-800 text-slate-500 rounded text-[11px] transition font-medium border border-slate-700";
+                    }
+                }
+            });
+        });
+
+        const autoRotateBtn = document.getElementById('autoRotateBtn');
+        const rotateStatusText = document.getElementById('rotateStatusText');
+        autoRotateBtn.addEventListener('click', () => {
+            isAutoRotating = !isAutoRotating;
+            rotateStatusText.innerText = `Oto-Dönüş: ${isAutoRotating ? 'Açık' : 'Kapalı'}`;
+            autoRotateBtn.className = isAutoRotating ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5" : "bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg transition border border-slate-700 flex items-center space-x-1.5";
+        });
+
+        document.getElementById('resetCamera').addEventListener('click', () => {
+            camera.position.set(0, 1.5, 28);
+            controls.target.set(0, 1.5, 0);
+            controls.update();
+        });
+
+        window.addEventListener('resize', () => {
+            const width = container3D.clientWidth;
+            const height = container3D.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+
+        // --- INITIALIZE ---
+        initLayers();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (isAutoRotating) {
+                characterGroup.rotation.y += 0.008;
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
